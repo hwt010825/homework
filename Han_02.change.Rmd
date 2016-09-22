@@ -1,0 +1,115 @@
+---
+title: "Han_02"
+author: "Wanting Han"
+date: "September 21, 2016"
+output: html_document
+---
+
+#### 1a. Say “Vole vasopressin” 10 times as fast as you can. How many times did you trip up?
+
+* Once.
+
+#### 1b. What is the mean, median, sd, and interquartile range of the sample?
+
+```{r sample, echo=TRUE}
+library(magrittr)
+library(dplyr)
+vole_vaso <- c(98,96,94,88,86,82,77,74,70,60,59,52,50,47,40,35,29,13,6,5)
+vole_mean <- mean(vole_vaso)
+vole_median <- median(vole_vaso)
+vole_sd <- sd(vole_vaso)
+vole_IQR <- IQR(vole_vaso)
+```
+
+```{r results, echo=TRUE} 
+vole_mean
+vole_median
+vole_sd
+vole_IQR
+```
+
+#### 1c. What is the standard error of the mean (do this with a formula!)?
+
+``` {r SE, echo=TRUE}
+vole_n <- vole_vaso %>% length %>% sqrt
+vole_se <- vole_sd/vole_n
+vole_se
+```
+
+#### 1d. What does the standard error of the mean tell you about our estimate of the mean values of the population of vole vassopressin?
+
+* Bigger sample sizes, less standard error of the mean, which means the sample estimation is closer to the population. 
+
+
+#### 2a. Use sample() to get just one resample with a sample size of 10. What is its upper quartile?
+``` {r resample, echo = TRUE}
+vole_s10 <- 
+  sample(vole_vaso, size = 10, replace = TRUE)
+quantile(vole_s10, probs = 0.75)
+```
+
+### 2b. Build an initial data frame for simulations with the sample sizes 5 through 20. Have 100 simulations per sample size.
+``` {r stim, echo = TRUE}
+vole_df <- 
+  data.frame(samp_size = rep(5:20, times = 100))
+vole_df$sim <- 1:nrow(vole_df)
+vole_df
+```
+
+#### 2c. Use this data frame to get simulated upper quartiles for each sample size.
+``` {r quartitle, echo = TRUE}
+vole_df_Q <- 
+  vole_df %>%
+  group_by(sim) %>%
+  mutate(quantile = quantile(sample(vole_vaso, samp_size, replace = TRUE), probs = 0.75)) %>% ungroup()
+vole_df_Q
+```
+
+### 2d. With a plot, make a guesstimate as to the best sample size for estimating the upper quartile of the population.
+``` {r plot, echo = TRUE}
+plot(quantile ~ samp_size, data = vole_df_Q, col = "red")
+```
+
+### 3a. With the upper quartile simulations, calculate the SD for each sample size using dplyr
+```{r dplyr, echo = TRUE}
+vole_df_SD <- 
+  vole_df_Q %>% group_by(samp_size) %>% summarise(sd = sd(quantile)) %>% ungroup()
+vole_df_SD
+```
+
+#### 3b. What does this value, the standard error of the upper quartile, mean?
+* The standard error of the upper quartile shows how true the estimate of the upper quartile is.
+
+#### 3c. What is the CI of the upper quartile with a sample size of 10. What does this mean?
+``` {r CI, echo = TRUE}
+vole_df_mean <-
+  vole_df_Q %>% 
+  group_by(samp_size) %>% 
+  summarise(mean = mean(quantile)) %>%
+  ungroup()
+sd <- filter(vole_df_SD, samp_size == 10)
+se <- sd[,2]/sqrt(10)
+mean_10 <- vole_df_mean[6, 2]
+upper_CI <- mean_10 + 2*se
+lower_CI <- mean_10 - 2*se
+upper_CI
+lower_CI
+```
+* CI tells that there has 95% chance the upper quartile which calculated from sample size of 10 contains the true value of the population.
+
+#### 3d. Extra Credit: Instead of having each sim calculate a upper quartile, and then sifting down to the SE of that upper quartile (or the CI), have each simulation calculate a CI. Then, for just a sample size of 10, how many CI’s contain the true value of 83?
+``` {r}
+vole_df_mean_sd <-
+vole_df %>%
+  group_by(sim) %>%
+  mutate(mean = mean(sample(vole_vaso, samp_size, replace = TRUE)), sd = sd(sample(vole_vaso, samp_size, replace = TRUE))) %>% ungroup()
+
+vole_df_mean_sd_10 <- filter(vole_df_mean_sd, samp_size == 10)
+
+lower_CI <- vole_df_mean_sd_10[,3]-2*vole_df_mean_sd_10[,4]/sqrt(10)
+upper_CI <- vole_df_mean_sd_10[,3]+2*vole_df_mean_sd_10[,4]/sqrt(10)
+vole_df_CI <- bind_cols(lower_CI, upper_CI)
+names(vole_df_CI) <- c("lower", "upper")
+
+nrow(filter(vole_df_CI, lower<=83, upper>=83))
+```
